@@ -1,24 +1,33 @@
 import pika
-import time
 import os
 
 rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
 
-import pika, sys, os
-
 def main():
-    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbitmq_host))
-    channel = connection.channel()
+    try:
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
+        channel = connection.channel()
 
-    channel.queue_declare(queue='hello')
+        channel.queue_declare(queue='hello')
 
-    def callback(ch, method, properties, body):
-        print(f" [x] Received {body}")
+        print('Connected to RabbitMQ successfully.')
 
-    channel.basic_consume(queue='hello', on_message_callback=callback, auto_ack=True)
+        def callback(ch, method, properties, body):
+            print(f" [x] Received {body}")
+            ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    print(' [*] Waiting for messages. To exit press CTRL+C')
-    channel.start_consuming()
+        channel.basic_consume(queue='hello', on_message_callback=callback, auto_ack=False)
+
+        print(' [*] Waiting for messages. To exit press CTRL+C')
+        channel.start_consuming()
+
+    except KeyboardInterrupt:
+        print("Interrupted, closing connection...")
+        connection.close()
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        connection.close()
 
 if __name__ == '__main__':
     main()
